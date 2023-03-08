@@ -46,7 +46,12 @@ lazy val shared = Seq(
   libraryDependencies ++=
     compileScope(kamonCore, kamonCommon) ++
       testScope(scalatest, kamonTestkit, logbackClassic),
-  Test / parallelExecution := false
+  Test / parallelExecution := false,
+  scmInfo := Some(
+    ScmInfo(url("https://github.com/codacy/kamon-http4s"), "scm:git@github.com:codacy/kamon-http4s.git")
+  ),
+  // this setting is not picked up properly from the plugin
+  pgpPassphrase := Option(System.getenv("SONATYPE_GPG_PASSPHRASE")).map(_.toCharArray)
 ) ++ publicMvnPublish
 
 lazy val `kamon-http4s-0_23` = project
