@@ -19,12 +19,14 @@ package kamon.http4s
 import cats.effect.unsafe.implicits.global
 import cats.effect.{Concurrent, IO}
 import cats.implicits._
+import com.comcast.ip4s._
+import kamon.Kamon
 import kamon.http4s.middleware.server.KamonSupport
 import kamon.tag.Lookups.{plain, plainLong}
 import kamon.testkit.TestSpanReporter
 import kamon.trace.Span
-import org.http4s.blaze.client.BlazeClientBuilder
-import org.http4s.blaze.server.BlazeServerBuilder
+import org.http4s.ember.client.EmberClientBuilder
+import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.client.Client
 import org.http4s.dsl.io._
 import org.http4s.implicits._
@@ -43,9 +45,13 @@ class ServerInstrumentationSpec extends WordSpec
   with TestSpanReporter
   with BeforeAndAfterAll {
 
+  Kamon.init()
+
   val srv =
-    BlazeServerBuilder[IO](global.compute)
-      .bindAny()
+    EmberServerBuilder
+      .default[IO]
+      .withHost(ipv4"127.0.0.1")
+      .withPort(port"43565")
       .withHttpApp(KamonSupport(HttpRoutes.of[IO] {
           case GET -> Root / "tracing" / "ok" =>  Ok("ok")
           case GET -> Root / "tracing" / "error"  => InternalServerError("error!")
@@ -53,9 +59,9 @@ class ServerInstrumentationSpec extends WordSpec
           case GET -> Root / "tracing" / name / "ok" =>  Ok(s"ok $name")
         }
       ,"", 0).orNotFound)
-    .resource
+    .build
 
-  val client = BlazeClientBuilder[IO](global.compute).resource
+  val client = EmberClientBuilder.default[IO].build
 
   def withServerAndClient[A](f: (Server, Client[IO]) => IO[A]): A =
     (srv, client).tupled.use(f.tupled).unsafeRunSync()

@@ -13,21 +13,30 @@
  * =========================================================================================
  */
 
-val kamonCore    = "io.kamon" %% "kamon-core"                   % "2.2.3"
-val kamonTestkit = "io.kamon" %% "kamon-testkit"                % "2.2.3"
-val kamonCommon  = "io.kamon" %% "kamon-instrumentation-common" % "2.2.3"
+val kamonVersion = "2.6.0"
+
+val kamonCore    = "io.kamon" %% "kamon-core"                   % kamonVersion
+val kamonTestkit = "io.kamon" %% "kamon-testkit"                % kamonVersion
+val kamonCommon  = "io.kamon" %% "kamon-instrumentation-common" % kamonVersion
+
+// copy pasted from https://github.com/kamon-io/kamon-sbt-umbrella
+val logbackClassic = "ch.qos.logback"   %  "logback-classic" % "1.2.3"
+val scalatest      = "org.scalatest"    %% "scalatest"       % "3.0.9"
+def compileScope(deps: ModuleID*): Seq[ModuleID]  = deps map (_ % "compile")
+def testScope(deps: ModuleID*): Seq[ModuleID]     = deps map (_ % "test")
+// end copy pasted section
 
 def http4sDeps(version: String) = Seq(
   "org.http4s" %% "http4s-client"       % version % Provided,
   "org.http4s" %% "http4s-server"       % version % Provided,
-  "org.http4s" %% "http4s-blaze-client" % version % Test,
-  "org.http4s" %% "http4s-blaze-server" % version % Test,
+  "org.http4s" %% "http4s-ember-client" % version % Test,
+  "org.http4s" %% "http4s-ember-server" % version % Test,
   "org.http4s" %% "http4s-dsl"          % version % Test
 )
 
 lazy val shared = Seq(
-  scalaVersion := "2.13.6",
-  crossScalaVersions := Seq("2.12.14", "2.13.6"),
+  scalaVersion := "2.13.10",
+  
   moduleName := name.value,
   publishTo := sonatypePublishToBundle.value,
   scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
@@ -36,31 +45,26 @@ lazy val shared = Seq(
   }),
   libraryDependencies ++=
     compileScope(kamonCore, kamonCommon) ++
-      testScope(scalatest, kamonTestkit, logbackClassic)
-)
-
-lazy val `kamon-http4s-0_22` = project
-  .in(file("modules/0.22"))
-  .settings(
-    shared,
-    name := "kamon-http4s-0.22",
-    libraryDependencies ++= http4sDeps("0.22.2")
-  )
+      testScope(scalatest, kamonTestkit, logbackClassic),
+  Test / parallelExecution := false
+) ++ publicMvnPublish
 
 lazy val `kamon-http4s-0_23` = project
   .in(file("modules/0.23"))
   .settings(
     shared,
+    crossScalaVersions := Seq("2.12.17", "2.13.10"),
     name := "kamon-http4s-0.23",
-    libraryDependencies ++= http4sDeps("0.23.1")
+    libraryDependencies ++= http4sDeps("0.23.18")
   )
 
 lazy val `kamon-http4s-1_0` = project
   .in(file("modules/1.0"))
   .settings(
     shared,
+    crossScalaVersions := Seq("2.13.10"),
     name := "kamon-http4s-1.0",
-    libraryDependencies ++= http4sDeps("1.0.0-M24")
+    libraryDependencies ++= http4sDeps("1.0.0-M38")
   )
 
 lazy val root = project
@@ -70,6 +74,7 @@ lazy val root = project
     name := "kamon-http4s",
     publish / skip := true,
     Test / parallelExecution := false,
-    Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
+    Global / concurrentRestrictions += Tags.limit(Tags.Test, 1),
+    pgpPassphrase := Option(System.getenv("SONATYPE_GPG_PASSPHRASE")).map(_.toCharArray)
   )
-  .aggregate(`kamon-http4s-0_22`, `kamon-http4s-0_23`, `kamon-http4s-1_0`)
+  .aggregate(`kamon-http4s-0_23`, `kamon-http4s-1_0`)
